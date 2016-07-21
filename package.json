@@ -20,6 +20,9 @@
     "url": "https://gitlab.com/wuip-jarvis/univToGmail/issues"
   },
   "homepage": "https://gitlab.com/wuip-jarvis/univToGmail#README",
+  "dependencies": {
+    "imap": "^0.8.17"
+  },
   "devDependencies": {
     "gulp": "^3.9.1",
     "gulp-eslint": "^3.0.1"
