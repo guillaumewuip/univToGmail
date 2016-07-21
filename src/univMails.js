@@ -4,7 +4,8 @@
 
     const
         EventEmitter = require('events'),
-        Imap         = require('imap');
+        Imap         = require('imap'),
+        log          = require('./log')('[univ]');
 
     /**
      * openInbox
@@ -107,6 +108,8 @@
             findUnread(imap)
                 .then((uids) => {
 
+                    log(uids);
+
                     uids.forEach((uid) => {
                         parseMail(imap, uid)
                             .then((mail) => {
@@ -134,16 +137,16 @@
             process.exit(1);
         });
 
+        //Find unread on each new mail
+        imap.on('mail', readMails);
+
         imap.on('ready', () => {
 
-            console.log('Opening inbox');
+            log('Opening inbox');
 
             openInbox(imap)
                 .then(() => {
-                    console.info('Start imap listening');
-
-                    //Find unread on each new mail
-                    imap.on('mail', readMails);
+                    log('Start imap listening');
 
                     //find unread on start
                     readMails();
