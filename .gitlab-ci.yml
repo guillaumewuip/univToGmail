@@ -45,7 +45,7 @@ npm_test:
   image: node
   stage: test
   before_script:
-    - npm install -g mocha
+    - npm install -g gulp
   script:
     - npm test
 
