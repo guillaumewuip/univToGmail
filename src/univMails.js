@@ -46,21 +46,30 @@
                 markSeen: true,
             });
 
-            let body  = '';
+            let buffer    = [],
+                bufferLen = 0,
+                date;
 
             query.on('message', (msg) => {
 
                 msg.on('body', (stream) => {
-
                     stream.on('data', (chunk) => {
-                        body += chunk.toString('utf8');
+                        buffer.push(chunk);
+                        bufferLen += chunk.length;
                     });
-
                 });
-            });
 
-            query.once('end', () => {
-                resolve(body);
+                msg.on('attributes', (attrs) => {
+                    date = new Date(attrs.date);
+                });
+
+                msg.once('end', () => {
+                    resolve({
+                        id:     uid,
+                        date:   date,
+                        buffer: Buffer.concat(buffer, bufferLen),
+                    });
+                });
             });
 
             query.on('error', () => {
@@ -108,12 +117,14 @@
             findUnread(imap)
                 .then((uids) => {
 
-                    log(uids);
+                    log('Unread mails', uids);
 
                     uids.forEach((uid) => {
                         parseMail(imap, uid)
                             .then((mail) => {
-                                imapEmitter.emit('new', mail);
+                                log(`New mail ${mail.id}`);
+                                log(mail);
+                                imapEmitter.emit('mail', mail);
                             })
                             .catch((err) => {
                                 console.error(`Can't parse mail ${uid}`, err);
