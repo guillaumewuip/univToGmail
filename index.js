@@ -3,7 +3,8 @@
 (() => {
 
     const
-        univMails = require('./src/univMails.js');
+        univMails  = require('./src/univMails'),
+        gmailMails = require('./src/gmailMails');
 
     const
         UNIV_USER = (() => {
@@ -32,13 +33,50 @@
                 return 993;
             }
             return process.UNIV_PORT;
+        })(),
+
+        GMAIL_USER = (() => {
+            if (!process.env.GMAIL_USER) {
+                throw new Error('Need GMAIL_USER');
+            }
+            return process.env.GMAIL_USER;
+        })(),
+
+        GMAIL_PASSWORD = (() => {
+            if (!process.env.GMAIL_PASSWORD) {
+                throw new Error('Need GMAIL_PASSWORD');
+            }
+            return process.env.GMAIL_PASSWORD;
+        })(),
+
+        GMAIL_SERVER = (() => {
+            if (!process.env.GMAIL_SERVER) {
+                throw new Error('Need GMAIL_SERVER');
+            }
+            return process.env.GMAIL_SERVER;
+        })(),
+
+        GMAIL_PORT = (() => {
+            if (!process.env.GMAIL_PORT) {
+                return 993;
+            }
+            return process.GMAIL_PORT;
         })();
 
-    univMails({
+    const univ = univMails({
         USER:     UNIV_USER,
         PASSWORD: UNIV_PASSWORD,
         SERVER:   UNIV_SERVER,
         PORT:     UNIV_PORT,
     });
+
+    const gmail = gmailMails({
+        USER:     GMAIL_USER,
+        PASSWORD: GMAIL_PASSWORD,
+        SERVER:   GMAIL_SERVER,
+        PORT:     GMAIL_PORT,
+    });
+
+    univ.on('mail', gmail.save);
 
 })();
