@@ -7,7 +7,7 @@
     "node": "6.3.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "gulp build",
     "start": "node index.js"
   },
   "repository": {
@@ -20,6 +20,9 @@
     "url": "https://gitlab.com/wuip-jarvis/univToGmail/issues"
   },
   "homepage": "https://gitlab.com/wuip-jarvis/univToGmail#README",
+  "dependencies": {
+    "imap": "^0.8.17"
+  },
   "devDependencies": {
     "gulp": "^3.9.1",
     "gulp-eslint": "^3.0.1"
