@@ -127,12 +127,12 @@
                 });
         };
 
-        imap.on('error', function (err) {
+        imap.on('error', (err) => {
             console.error(err);
             process.exit(1);
         });
 
-        imap.on('end', function () {
+        imap.on('end', () => {
             console.error('Connection ended');
             process.exit(1);
         });
