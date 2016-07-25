@@ -101,11 +101,13 @@
         let imapEmitter = new EventEmitter();
 
         let imap = new Imap({
-            user:     imapInfos.USER,
-            password: imapInfos.PASSWORD,
-            host:     imapInfos.SERVER,
-            port:     imapInfos.PORT,
-            tls:      true,
+            user:        imapInfos.USER,
+            password:    imapInfos.PASSWORD,
+            host:        imapInfos.SERVER,
+            port:        imapInfos.PORT,
+            tls:         true,
+            connTimeout: 10000, //10sec
+            authTimeout: 10000, //10sec
         });
 
         /**

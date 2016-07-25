@@ -68,11 +68,13 @@
     const gmailMails = (config) => {
 
         let imap = new Imap({
-            user:     config.USER,
-            password: config.PASSWORD,
-            host:     config.SERVER,
-            port:     config.PORT,
-            tls:      true,
+            user:        config.USER,
+            password:    config.PASSWORD,
+            host:        config.SERVER,
+            port:        config.PORT,
+            tls:         true,
+            connTimeout: 10000, //10sec
+            authTimeout: 10000, //10sec
         });
 
         imap.on('error', (err) => {
