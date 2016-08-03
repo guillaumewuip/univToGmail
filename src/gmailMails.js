@@ -93,7 +93,7 @@
             })
             .catch((err) => {
                 console.error(err);
-                process.kill(1);
+                process.exit(1);
             })
             .then(() => {
                 log('Credentials ok');
