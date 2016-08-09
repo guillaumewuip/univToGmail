@@ -150,9 +150,6 @@
             process.exit(1);
         });
 
-        //Find unread on each new mail
-        imap.on('mail', readMails);
-
         imap.on('ready', () => {
 
             log('Opening inbox');
@@ -161,8 +158,13 @@
                 .then(() => {
                     log('Start imap listening');
 
-                    //find unread on start
-                    readMails();
+                    setTimeout(() => { //wait 30sec before reading anything
+                        //find unread on start
+                        readMails();
+
+                        //Find unread on each new mail
+                        imap.on('mail', readMails);
+                    }, 30000);
                 })
                 .catch((err) => {
                     console.error(err);
