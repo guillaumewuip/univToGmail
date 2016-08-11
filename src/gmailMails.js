@@ -75,6 +75,7 @@
             tls:         true,
             connTimeout: 10000, //10sec
             authTimeout: 10000, //10sec
+            debug:       console.log.bind(console),
         });
 
         imap.on('error', (err) => {
