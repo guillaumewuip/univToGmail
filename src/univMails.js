@@ -42,7 +42,6 @@
 
             let query = imap.fetch(uid, {
                 bodies:   '',
-                struct:   false,
                 markSeen: true,
             });
 
