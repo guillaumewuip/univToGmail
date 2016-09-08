@@ -3,30 +3,10 @@
 (() => {
 
     const
-        EventEmitter = require('events'),
-        Imap         = require('imap'),
-        log          = require('./log')('[univ]');
-
-    /**
-     * openInbox
-     *
-     * @param  {Imap}   imap
-     */
-    const openInbox = function (imap) {
-        return new Promise((resolve, reject) => {
-            imap.openBox(
-                'INBOX',
-                false,
-                (err, box) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve(box);
-                    }
-                }
-            );
-        });
-    };
+        EventEmitter   = require('events'),
+        inbox          = require('inbox'),
+        streamToBuffer = require('stream-to-buffer'),
+        log            = require('./log')('[univ]');
 
     /**
      * parseMail
@@ -40,40 +20,17 @@
 
         return new Promise((resolve, reject) => {
 
-            let query = imap.fetch(uid, {
-                bodies:   '',
-                struct:   false,
-                markSeen: true,
-            });
+            let messageStream = imap.createMessageStream(uid);
 
-            let buffer    = [],
-                bufferLen = 0,
-                date;
-
-            query.on('message', (msg) => {
-
-                msg.on('body', (stream) => {
-                    stream.on('data', (chunk) => {
-                        buffer.push(chunk);
-                        bufferLen += chunk.length;
-                    });
-                });
-
-                msg.on('attributes', (attrs) => {
-                    date = new Date(attrs.date);
-                });
-
-                msg.once('end', () => {
+            streamToBuffer(messageStream, (err, buffer) => {
+                if (err) {
+                    reject(err);
+                } else {
                     resolve({
-                        id:     uid,
-                        date:   date,
-                        buffer: Buffer.concat(buffer, bufferLen),
+                        uid,
+                        buffer,
                     });
-                });
-            });
-
-            query.on('error', () => {
-                reject();
+                }
             });
         });
     };
@@ -86,90 +43,84 @@
      */
     let findUnread = (imap) => {
         return new Promise((resolve, reject) => {
-            imap.search(['UNSEEN'], (err, uids) => {
+            const query = {unseen: true, not: {seen: true}};
+            imap.search(query, true, (err, results) => {
                 if (err) {
                     reject(err);
                 } else {
-                    resolve(uids);
+                    resolve(results);
                 }
             });
         });
     };
 
+    /**
+     * readMail
+     *
+     * Parse a mail then emit event
+     */
+    const readMail = (imap, imapEmitter) => (uid) => {
+        parseMail(imap, uid)
+            .then((mail) => {
+                log(`New mail ${mail.uid}`);
+                log(mail);
+                imapEmitter.emit('mail', mail);
+                imap.addFlags(mail.uid, ['\\Seen'], (err) => {
+                    if (err) {
+                        console.error('Can\’t mark mail ${mail.uid} as seen');
+                    }
+                });
+            })
+            .catch((err) => {
+                console.error(`Can't parse mail ${uid}`, err);
+            });
+    };
+
     const univMails = (imapInfos) => {
 
-        let imapEmitter = new EventEmitter();
+        const imapEmitter = new EventEmitter();
 
-        let imap = new Imap({
-            user:        imapInfos.USER,
-            password:    imapInfos.PASSWORD,
-            host:        imapInfos.SERVER,
-            port:        imapInfos.PORT,
-            tls:         true,
-            connTimeout: 10000, //10sec
-            authTimeout: 10000, //10sec
-        });
+        const imap = inbox.createConnection(
+            imapInfos.PORT,
+            imapInfos.SERVER, {
+                secureConnection: true,
+                auth:             {
+                    user: imapInfos.USER,
+                    pass: imapInfos.PASSWORD,
+                },
+            }
+        );
 
-        /**
-         * readMails
-         *
-         * Find unread mails, parse them, then emit 'new' event for each
-         */
-        const readMails = () => {
-            findUnread(imap)
-                .then((uids) => {
-
-                    log('Unread mails', uids);
-
-                    uids.forEach((uid) => {
-                        parseMail(imap, uid)
-                            .then((mail) => {
-                                log(`New mail ${mail.id}`);
-                                log(mail);
-                                imapEmitter.emit('mail', mail);
-                            })
-                            .catch((err) => {
-                                console.error(`Can't parse mail ${uid}`, err);
-                            });
-                    });
-
-                })
-                .catch((err) => {
-                    console.error(err);
-                    process.exit(1);
-                });
-        };
-
-        imap.on('error', (err) => {
-            console.error(err);
-            process.exit(1);
-        });
-
-        imap.on('end', () => {
-            console.error('Connection ended');
-            process.exit(1);
-        });
-
-        imap.on('ready', () => {
-
+        imap.on('connect', () => {
             log('Opening inbox');
 
-            openInbox(imap)
-                .then(() => {
-                    log('Start imap listening');
-
-                    setTimeout(() => { //wait 30sec before reading anything
-                        //find unread on start
-                        readMails();
-
-                        //Find unread on each new mail
-                        imap.on('mail', readMails);
-                    }, 30000);
-                })
-                .catch((err) => {
-                    console.error(err);
+            imap.openMailbox('INBOX', {readOnly: false}, (err) => {
+                if (err) {
+                    console.error('Can\'t open INBOX', err);
                     process.exit(1);
-                });
+                }
+
+                findUnread(imap)
+                    .then((results) => {
+                        results.forEach(readMail(imap, imapEmitter));
+                    })
+                    .catch((err) => {
+                        console.error('Univ error finding emails', err);
+                        process.exit(1);
+                    });
+            });
+        });
+
+        imap.on('new', (message) => readMail(imap, imapEmitter)(message.UID));
+
+        imap.on('error', (err) => {
+            console.error('Univ error', err);
+            process.exit(1);
+        });
+
+        imap.on('close', () => {
+            console.error('Univ disonnection');
+            process.exit(1);
         });
 
         imap.connect();
