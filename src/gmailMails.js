@@ -3,34 +3,37 @@
 (() => {
 
     const
-        Imap = require('imap'),
-        log  = require('./log')('[gmail]');
+        inbox = require('inbox'),
+        log   = require('./log')('[gmail]');
 
-    const connect = (imap) => {
+    const connect = (config) => {
         return new Promise((resolve) => {
-            imap.once('ready', () => {
-                log('imap connected');
-                resolve();
-            });
-            imap.connect();
-        });
-    };
-
-    const openInbox = (imap) => {
-        return new Promise((resolve, reject) => {
-            imap.openBox(
-                'INBOX',
-                false,
-                (err, box) => {
-                    if (err) {
-                        log('can\'t open inbox');
-                        reject(err);
-                    } else {
-                        log('inbox open');
-                        resolve(box);
-                    }
+            const imap = inbox.createConnection(
+                config.PORT,
+                config.SERVER, {
+                    secureConnection: true,
+                    auth:             {
+                        user: config.USER,
+                        pass: config.PASSWORD,
+                    },
                 }
             );
+
+            imap.on('error', (err) => {
+                console.error('Gmail error', err);
+                process.exit(1);
+            });
+
+            imap.on('close', () => {
+                log('disconnected');
+            });
+
+            imap.once('connect', () => {
+                log('imap connected');
+                resolve(imap);
+            });
+
+            imap.connect();
         });
     };
 
@@ -39,77 +42,66 @@
         /**
          * Save a mail into the imap inbox
          * @param  {Object} mail
-         * @param  {Number} mail.id
+         * @param  {Number} mail.uid
          * @param  {Buffer} mail.buffer
-         * @param  {Date}   mail.date
          */
         return (mail) => {
             return new Promise((resolve, reject) => {
-                log(`Saving mail ${mail.id}`);
-                imap.append(
-                    mail.buffer,
-                    {
-                        date: mail.date,
-                    },
-                    (err) => {
-                        if (err) {
-                            console.error(`Error with mail ${mail.id}`);
-                            reject(err);
-                        } else {
-                            log(`Mail ${mail.id} saved`);
-                            resolve();
-                        }
+                log(`Saving mail ${mail.uid}`);
+
+                imap.openMailbox('INBOX', (err) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        imap.storeMessage(mail.buffer, null, (err, params) => {
+                            if (err) {
+                                console.error(
+                                    `Error with mail ${mail.uid}`,
+                                    err
+                                );
+                                reject(err);
+                            } else {
+                                log(`Mail ${mail.uid} saved. \
+                                    UIDValidity=${params.UIDValidity}\
+                                    UID=${params.UID}`);
+                                resolve();
+                            }
+                        });
                     }
-                );
+                });
             });
         };
     };
 
     const gmailMails = (config) => {
 
-        let imap = new Imap({
-            user:        config.USER,
-            password:    config.PASSWORD,
-            host:        config.SERVER,
-            port:        config.PORT,
-            tls:         true,
-            connTimeout: 10000, //10sec
-            authTimeout: 10000, //10sec
-        });
-
-        imap.on('error', (err) => {
-            console.error(err);
-            process.exit(1);
-        });
-
-        imap.on('end', () => {
-            log('Connection ended');
-        });
-
-        //test credentials
-        connect(imap)
-            .then(() => {
-                //imap.end();
-            })
+        connect(config) //test credentials
             .catch((err) => {
                 console.error(err);
                 process.exit(1);
             })
-            .then(() => {
+            .then((imap) => {
                 log('Credentials ok');
+                imap.close();
             });
 
         return {
             save: (mail) => {
                 log('got mail', mail);
 
-                connect(imap)
-                    .then(openInbox.bind(null, imap))
-                    .then(() => {
-                        return saveMailBuild(imap)(mail);
-                    })
+                connect(config)
                     .catch((err) => {
                         console.error(err);
+                        process.exit(1);
+                    })
+                    .then((imap) => {
+                        return saveMailBuild(imap)(mail)
+                            .catch((err) => {
+                                console.error(err);
+                            })
+                            .then(() => {
+                                imap.close();
+                            });
                     });
             },
         };
