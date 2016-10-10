@@ -86,23 +86,22 @@
             });
 
         return {
-            save: (mail) => {
+            save: (mail, done) => {
                 log('got mail', mail);
 
                 connect(config)
+                    .then((imap) => {
+                        return saveMailBuild(imap)(mail)
+                            .then(() => done(mail.uid))
+                            .catch((err) => {
+                                console.error(err);
+                            })
+                            .then(imap.close.bind(imap));
+                    })
                     .catch((err) => {
                         console.error(err);
                         process.exit(1);
                     })
-                    .then((imap) => {
-                        return saveMailBuild(imap)(mail)
-                            .catch((err) => {
-                                console.error(err);
-                            })
-                            .then(() => {
-                                imap.close();
-                            });
-                    });
             },
         };
 
