@@ -65,15 +65,25 @@
                 log(`New mail ${mail.uid}`);
                 log(mail);
                 imapEmitter.emit('mail', mail);
-                imap.addFlags(mail.uid, ['\\Seen'], (err) => {
-                    if (err) {
-                        console.error('Can\’t mark mail ${mail.uid} as seen');
-                    }
-                });
             })
             .catch((err) => {
                 console.error(`Can't parse mail ${uid}`, err);
             });
+    };
+
+    /**
+     * readMail
+     *
+     * Parse a mail then emit event
+     */
+    const done = (imap) => (uid) => {
+        imap.addFlags(uid, ['\\Seen'], (err) => {
+            if (err) {
+                console.error('Can\’t mark mail ${mail.uid} as seen');
+            } else {
+                log(`Marked mail ${uid} as seen`);
+            }
+        });
     };
 
     const univMails = (imapInfos) => {
@@ -124,6 +134,8 @@
         });
 
         imap.connect();
+
+        imapEmitter.done = done(imap);
 
         return imapEmitter;
     };

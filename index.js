@@ -77,6 +77,6 @@
         PORT:     GMAIL_PORT,
     });
 
-    univ.on('mail', gmail.save);
+    univ.on('mail', (mail) => gmail.save(mail, univ.done));
 
 })();
