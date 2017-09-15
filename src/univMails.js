@@ -9,6 +9,11 @@
         log            = require('./log')('[univ]');
 
     /**
+     * isSpam
+     */
+    const isSpam = (mail) => mail.title.includes('[SPAM]');
+
+    /**
      * parseMail
      *
      * Find the whole mail
@@ -64,7 +69,9 @@
             .then((mail) => {
                 log(`New mail ${mail.uid}`);
                 log(mail);
-                imapEmitter.emit('mail', mail);
+                if (!isSpam(mail)) {
+                    imapEmitter.emit('mail', mail);
+                }
             })
             .catch((err) => {
                 console.error(`Can't parse mail ${uid}`, err);
