@@ -11,7 +11,7 @@
     /**
      * isSpam
      */
-    const isSpam = (mail) => mail.title.includes('[SPAM]');
+    const isSpam = (mail) => /[SPAM]/.test(mail.title);
 
     /**
      * parseMail
@@ -22,9 +22,7 @@
      * @param  {String} uid  The mail uid
      */
     const parseMail = function (imap, uid) {
-
         return new Promise((resolve, reject) => {
-
             let messageStream = imap.createMessageStream(uid);
 
             streamToBuffer(messageStream, (err, buffer) => {
@@ -39,6 +37,22 @@
             });
         });
     };
+
+    /**
+     * fetchData
+     *
+     * Get more data for email uid
+     */
+    const fetchData = (imap, uid) => new Promise((resolve, reject) => {
+        imap.fetchData(uid, (err, data) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            resolve(data);
+        });
+    });
 
     /**
      * findUnread
@@ -65,12 +79,17 @@
      * Parse a mail then emit event
      */
     const readMail = (imap, imapEmitter) => (uid) => {
-        parseMail(imap, uid)
-            .then((mail) => {
+        Promise.all([
+            parseMail(imap, uid),
+            fetchData(imap, uid),
+        ])
+            .then(([mail, data]) => {
                 log(`New mail ${mail.uid}`);
                 log(mail);
-                if (!isSpam(mail)) {
+                if (!isSpam(data)) {
                     imapEmitter.emit('mail', mail);
+                } else {
+                    done(imap)(mail.uid);
                 }
             })
             .catch((err) => {
