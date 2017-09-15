@@ -72,9 +72,9 @@
     };
 
     /**
-     * readMail
+     * done
      *
-     * Parse a mail then emit event
+     * Set an email as seen
      */
     const done = (imap) => (uid) => {
         imap.addFlags(uid, ['\\Seen'], (err) => {
